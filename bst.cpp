@@ -17,22 +17,18 @@ right_child = nullptr;
 
 Node* insertR(Node* r, int val)
 {
-if (r == nullptr) 
-    {
+if (r == nullptr) {
     return new Node(val);
     }
 
-if (r->data == val) 
-    {
+if (r->data == val) {
     return r;
     }
 
-if (val > r->data) 
-    {
+if (val > r->data) {
     r->right_child = insertR(r->right_child, val);
     } 
-else 
-    {
+else {
     r->left_child = insertR(r->left_child, val);
     }
 return r;
@@ -42,6 +38,6 @@ return r;
 
 
 int main() {
-    cout << " ciao"<<endl;
+    cout << ""<<endl;
     return 0;
 }
