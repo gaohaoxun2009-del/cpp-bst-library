@@ -32,21 +32,10 @@ Node* insertR(Node* r, int val) {
     }
     return r;
 }
-Node* search(Node* r, int val) {
-    Node* current = r;
 
-    while (current != nullptr) {
-        if (current->data == val) {
-            return current;
-        }
+int main()
+{
 
-        if (val < current->data) {
-            current = current->left_child;
-        } else {
-            current = current->right_child;
-        }
-    }
-
-    return nullptr;
+    return 0;
 }
 
