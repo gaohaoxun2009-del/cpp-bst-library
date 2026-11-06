@@ -1,106 +1,337 @@
+// Esercitazione (90 minuti): refactoring di un BST, da struct a classi - classe 4C
+// Nome/Codice: ______________________
+//
+// Trasforma la libreria del Binary Search Tree: la struct Node diventa una classe con
+// attributi privati e le funzioni libere diventano metodi di una nuova classe BST.
+// I nomi dei metodi sono quelli scritti qui sotto e usati da main.cpp: decidi tu
+// parametri e tipo restituito, guardando anche come li usa main.cpp.
+// NON modificare main.cpp. Consegna SOLO questo file (bst.cpp).
+// Se un metodo non riesci a scriverlo, lascia almeno una versione vuota
+// (che restituisce un valore qualsiasi) per far compilare il programma.
+
 #include <iostream>
-#include <string>
-#include <vector>
 using namespace std;
 
-struct Node {
-    int data;
-    Node *left_child;
-    Node *right_child;
+// =====================================================================
+// PARTE A - la classe Node (circa 15 minuti)
+// =====================================================================
 
-    Node(int key) {
+class Node {
+private:
+    // TODO 1 - gli attributi: la chiave (int) e i puntatori ai due figli.
+    //          Usa gli stessi nomi della struct originale: data, left, right.
+    int data;
+    Node* left;
+    Node* right;
+public:
+    // TODO 1 - costruttore Node
+    //          Riceve la chiave. All'inizio il nodo non ha figli (entrambi i puntatori valgono nullptr).
+    //          Dai al parametro un nome diverso da quello dell'attributo.
+    Node (int key){
         data = key;
-        left_child = nullptr;
-        right_child = nullptr;
+        left = right = nullptr;
+    }
+
+    // TODO 2 - getData, getLeft, getRight
+    //          Restituiscono la chiave, il figlio sinistro e il figlio destro.
+    int getData(){
+        return data;
+    }
+
+    Node* getLeft(){
+        return left;
+    }
+
+    Node* getRight(){
+        return right;
+    }
+    // TODO 3 - setData, setLeft, setRight
+    //          Modificano la chiave e collegano il figlio sinistro e il figlio destro.
+    //          setLeft e setRight ricevono l'indirizzo di un nodo (o nullptr per scollegare).
+    void setData(int key){
+        data = key;
+    }
+
+    void setLeft(Node* n){
+        left = n;
+    }
+
+    void setRight(Node* n){
+        right = n;
+    }
+    // TODO 4 - isLeaf
+    //          Dice se il nodo e' una foglia, cioe' se non ha nessun figlio.
+    bool isLeaf(){
+        if(left == nullptr && right == nullptr ){
+            return true;
+        }
+        return false;
     }
 };
 
-Node* insertR(Node* r, int val) {
-    if (r == nullptr) {
-        return new Node(val);
+// =====================================================================
+// PARTE B - la classe BST: struttura, inserimento, ricerca, visita (circa 30 minuti)
+// L'albero conosce solo la radice e il numero di nodi: da fuori non si vede nessun Node.
+// =====================================================================
+
+class BST {
+
+private:
+    Node* root;         // radice dell'albero, nullptr se l'albero e' vuoto
+    int numNodi;        // numero di chiavi presenti
+    
+    // Funzioni di appoggio private (ricorsive)
+    void inOrderRec(Node* current)  {
+        if (current == nullptr) return;
+        inOrderRec(current->getLeft());
+        cout << current->getData() << " ";
+        inOrderRec(current->getRight());
     }
 
-    if (r->data == val) {
-        return r;
+    int heightRec(Node* current) const {
+        if (current == nullptr) return 0;
+        int leftH = heightRec(current->getLeft());
+        int rightH = heightRec(current->getRight());
+        if (leftH > rightH) return 1 + leftH;
+        return 1 + rightH;
     }
 
-    if (val > r->data) {
-        r->right_child = insertR(r->right_child, val);
-    } 
-    else {
-        r->left_child = insertR(r->left_child, val);
-    }
-    return r;
-}
-Node* search(Node* r, int val) {
-    Node* current = r;
-
-    while (current != nullptr) {
-        if (current->data == val) {
-            return current;
+    Node* minNode(Node* node) const {
+        Node* current = node;
+        while (current->getLeft() != nullptr) {
+            current = current->getLeft();
         }
+        return current;
+    }
 
-        if (val < current->data) {
-            current = current->left_child;
+    Node* removeRec(Node* current, int key, bool& removed) {
+        if (current == nullptr) return nullptr;
+
+        if (key < current->getData()) {
+            current->setLeft(removeRec(current->getLeft(), key, removed));
+        } else if (key > current->getData()) {
+            current->setRight(removeRec(current->getRight(), key, removed));
         } else {
-            current = current->right_child;
+            removed = true;
+            // Caso 1: Nessun figlio (foglia)
+            if (current->getLeft() == nullptr && current->getRight() == nullptr) {
+                delete current;
+                numNodi--;
+                return nullptr;
+            } 
+            // Caso 2: Solo figlio destro
+            else if (current->getLeft() == nullptr) {
+                Node* temp = current->getRight();
+                delete current;
+                numNodi--;
+                return temp;
+            } 
+            // Caso 3: Solo figlio sinistro
+            else if (current->getRight() == nullptr) {
+                Node* temp = current->getLeft();
+                delete current;
+                numNodi--;
+                return temp;
+            } 
+            // Caso 4: Entrambi i figli
+            else {
+                Node* succ = minNode(current->getRight());
+                current->setData(succ->getData());
+                current->setRight(removeRec(current->getRight(), succ->getData(), removed));
+            }
+        }
+        return current;
+    }
+
+    void destroyRec(Node* current) {
+        if (current == nullptr) return;
+        destroyRec(current->getLeft());
+        destroyRec(current->getRight());
+        delete current;
+    }
+
+    int contaIntervalloRec(Node* current, int low, int high) const {
+        if (current == nullptr) return 0;
+        int count = 0;
+        int val = current->getData();
+        
+        if (val >= low && val <= high) {
+            count = 1;
+        }
+        // Sfrutta la proprietà del BST per evitare di visitare rami inutili
+        if (val > low) {
+            count += contaIntervalloRec(current->getLeft(), low, high);
+        }
+        if (val < high) {
+            count += contaIntervalloRec(current->getRight(), low, high);
+        }
+        return count;
+    }
+
+    int contaFoglie(Node* current) const {
+        if (current == nullptr) {
+            return 0;
+        }
+        if (current->getLeft() == nullptr && current->getRight() == nullptr) {
+            return 1;
+        }
+        return contaFoglie(current->getLeft()) + contaFoglie(current->getRight());
+    }
+
+public:
+    // TODO 5 - costruttore BST, isEmpty, size
+    //          Il costruttore crea un albero vuoto. isEmpty dice se l'albero e' vuoto,
+    //          size restituisce quante chiavi contiene.
+    BST () {
+        root = nullptr;
+        numNodi = 0;
+    }
+
+    bool isEmpty(){
+        return root == nullptr;
+    }
+
+    int size(){
+        return numNodi;
+    }
+    // TODO 6 - insert
+    //          Riceve una chiave e la inserisce al posto giusto creando un nuovo Node con new.
+    //          Niente duplicati: se la chiave e' gia' presente non fa nulla.
+    //          Dice se la chiave e' stata inserita.
+    bool insert(int key) {
+        if (isEmpty()) {
+            root = new Node(key);
+            numNodi++;
+            return true;
+        }
+
+        Node* current = root;
+        while (true) {
+            if (key == current->getData()) {
+                return false;
+            }
+            if (key < current->getData()) {
+                if (current->getLeft() == nullptr) {
+                    current->setLeft(new Node(key));
+                    numNodi++;
+                    return true;
+                }
+                current = current->getLeft();
+            } else {
+                if (current->getRight() == nullptr) {
+                    current->setRight(new Node(key));
+                    numNodi++;
+                    return true;
+                }
+                current = current->getRight();
+            }
         }
     }
+    // TODO 7 - search
+    //          Dice se una chiave e' presente nell'albero (non modifica l'albero).
+    bool search(int key) const {
+        Node* current = root;
+        while (current != nullptr) {
+            if (key == current->getData()) {
+                return true;
+            }
+            if (key < current->getData()) {
+                current = current->getLeft();
+            } else {
+                current = current->getRight();
+            }
+        }
+        return false;
+    }
+    // TODO 8 - inOrder
+    //          Stampa su cout tutte le chiavi in ordine crescente (visita inorder),
+    //          ciascuna seguita da uno spazio. Se l'albero e' vuoto non stampa nulla.
+    //          Non va a capo: ci pensa il main.
+    void inOrder() {
+        inOrderRec(root);
+    }
+    // TODO 9 - height
+    //          Restituisce l'altezza dell'albero, cioe' il numero di nodi del cammino piu' lungo
+    //          dalla radice a una foglia. Albero vuoto: 0.
+    int height() const {
+        return heightRec(root);
+    }
+    // TODO 10 - minimo, massimo
+    //          Restituiscono la chiave piu' piccola e quella piu' grande.
+    //          Per un albero vuoto restituiscono -1 (nell'esercizio le chiavi sono sempre positive).
+    int minimo() {
+        if (isEmpty()) return -1;
+        Node* current = root;
+        while (current->getLeft() != nullptr) {
+            current = current->getLeft();
+        }
+        return current->getData();
+    }
 
-    return nullptr;
-}
-Node* findMin(Node* root) {
-    if (root == nullptr) {
-        return nullptr;
+    int massimo() {
+        if (isEmpty()) return -1;
+        Node* current = root;
+        while (current->getRight() != nullptr) {
+            current = current->getRight();
+        }
+        return current->getData();
     }
-    Node* current = root;
-    while (current->left_child != nullptr) {
-        current = current->left_child;
-    }
-    return current;
-}
-
-Node* findMax(Node* root) {
-    if (root == nullptr) {
-        return nullptr;
-    }
-    Node* current = root;
-    while (current->right_child != nullptr) {
-        current = current->right_child;
-    }
-    return current;
-}
-
-int countNodes(const Node* root) {
-    if (root == nullptr) {
-        return 0;
-    }
-    return 1 + countNodes(root->left_child) + countNodes(root->right_child);
-}
-
-int countLeaves(const Node* root) {
-    if (root == nullptr) {
-        return 0;
-    }
-    if (root->left_child == nullptr && root->right_child == nullptr) {
-        return 1;
-    }
-    return countLeaves(root->left_child) + countLeaves(root->right_child);
-}
-
-int countInRange(const Node* root, int min, int max) {
-    if (root == nullptr) {
-        return 0;
-    }
+    // =================================================================
+    // PARTE C - cancellazione e memoria (circa 30 minuti)
+    // =================================================================
     
-    if (root->data > max) {
-        return countInRange(root->left_child, min, max);
+    // TODO 11 - remove
+    //          Elimina una chiave dall'albero e dice se esisteva. Gestisci i tre casi:
+    //          nodo senza figli, con un figlio, con due figli (si sostituisce la chiave con
+    //          quella del successore). Ogni nodo tolto va liberato con delete.
+    bool remove(int key) {
+        bool removed = false;
+        root = removeRec(root, key, removed);
+        return removed;
     }
-    
-    if (root->data < min) {
-        return countInRange(root->right_child, min, max);
+    // TODO 12 - svuota
+    //          Libera con delete tutti i nodi e riporta l'albero allo stato vuoto.
+    //          Deve poter essere chiamata anche due volte di fila senza danni.
+    void svuota() {
+        destroyRec(root);
+        root = nullptr;
+        numNodi = 0;
     }
-    
-    return 1 + countInRange(root->left_child, min, max) + countInRange(root->right_child, min, max);
-}
+    // TODO 13 - contaFoglie
+    //          Restituisce quante foglie ha l'albero (usa isLeaf). Albero vuoto: 0.
+    int contaFoglie() const {
+        return contaFoglie(root);
+    }
+    // BONUS TODO 14 - contaIntervallo
+    //          Riceve due chiavi low e high e restituisce quante chiavi dell'albero sono comprese
+    //          tra low e high (estremi inclusi). Sfrutta la proprieta' del BST: non serve
+    //          visitare i sottoalberi che non possono contenere chiavi dell'intervallo.
+    int contaIntervallo(int low, int high) const {
+        return contaIntervalloRec(root, low, high);
+    }
+};
 
+// =====================================================================
+// PARTE D - domande e controllo finale (circa 15 minuti)
+// Rispondi qui sotto, in due o tre righe ciascuna.
+// =====================================================================
+//
+// 1) Perche' gli attributi di Node sono private? Cosa si guadagna rispetto alla struct,
+//    in cui qualunque funzione poteva scrivere in data, left e right?
+//    Risposta:Rendendo i dati privati, si impedisce alle funzioni esterne di modificarli.
+//             Rispetto alla struct si guadagna in sicurezza e protezione della struttura, evitando errori accidentali dall'esterno.
+//
+// 2) Nella struct la radice veniva passata come argomento a ogni funzione; nella classe
+//    BST la radice e' un attributo. Cosa cambia per chi usa l'albero (guarda il main)?
+//    Risposta:Chi usa la classe non deve più passare la radice a ogni funzione come parametro, perché lo stato è gestito direttamente all'interno dell'oggetto.
+//             Il codice risulta così più pulito e semplice.            
+//
+// 3) Perche' di solito un metodo ricorsivo come insert o inOrder ha bisogno di una funzione di appoggio
+//    privata che riceve un nodo, e non puo' essere scritto direttamente come metodo pubblico
+//    Risposta:Perché i metodi pubblici offrono un'interfaccia semplice senza mostrare i dettagli dei nodi,
+//             mentre la funzione privata lavora dietro le quinte ricevendo il nodo corrente per gestire la ricorsione.
+//
+// 4) Chi e' responsabile di liberare i nodi creati con new? In quale momento lo si fa,
+//    e cosa succederebbe se ci si dimenticasse?
+//    Risposta:Il distruttore della classe è responsabile di liberare i nodi creati con new.
+//             Viene chiamato automaticamente quando l'oggetto viene distrutto, e se ci si dimentica c'è un memory leak
